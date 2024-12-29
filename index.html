@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Assistant Bot</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+            width: 90%;
+            max-width: 600px;
+        }
+
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .status-container {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .status-circle {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            margin: 0 auto 1rem;
+            background: #e0e0e0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .status-circle.listening {
+            background: #4CAF50;
+            animation: pulse 1.5s infinite;
+        }
+
+        .status-circle.speaking {
+            background: #2196F3;
+            animation: wave 1.5s infinite;
+        }
+
+        .conversation {
+            background: #f5f5f5;
+            border-radius: 10px;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .message {
+            margin: 0.5rem 0;
+            padding: 0.8rem;
+            border-radius: 10px;
+        }
+
+        .user-message {
+            background: #E3F2FD;
+            margin-left: 2rem;
+        }
+
+        .assistant-message {
+            background: #F3E5F5;
+            margin-right: 2rem;
+        }
+
+        .controls {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+        }
+
+        button {
+            padding: 0.8rem 1.5rem;
+            border: none;
+            border-radius: 25px;
+            background: #764ba2;
+            color: white;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            background: #667eea;
+            transform: translateY(-2px);
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        @keyframes wave {
+            0% { transform: scale(1); }
+            25% { transform: scale(1.05); }
+            50% { transform: scale(1); }
+            75% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Voice Assistant Bot</h1>
+        
+        <div class="status-container">
+            <div class="status-circle" id="statusCircle">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                    <line x1="12" y1="19" x2="12" y2="23"/>
+                    <line x1="8" y1="23" x2="16" y2="23"/>
+                </svg>
+            </div>
+            <div id="status">Click Start to begin</div>
+        </div>
+
+        <div class="conversation" id="conversation">
+            <!-- Messages will appear here -->
+        </div>
+
+        <div class="controls">
+            <button id="startBtn">Start Listening</button>
+            <button id="stopBtn" disabled>Stop</button>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const statusCircle = document.getElementById('statusCircle');
+        const status = document.getElementById('status');
+        const conversation = document.getElementById('conversation');
+
+        function addMessage(text, isUser = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user-message' : 'assistant-message'}`;
+            messageDiv.textContent = text;
+            conversation.appendChild(messageDiv);
+            conversation.scrollTop = conversation.scrollHeight;
+        }
+
+        startBtn.addEventListener('click', () => {
+            socket.emit('start_listening');
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+            statusCircle.classList.add('listening');
+            status.textContent = 'Listening...';
+        });
+
+        stopBtn.addEventListener('click', () => {
+            socket.emit('stop_listening');
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            statusCircle.classList.remove('listening', 'speaking');
+            status.textContent = 'Click Start to begin';
+        });
+
+        socket.on('connect', () => {
+            console.log('Connected to server');
+        });
+
+        socket.on('recognized_speech', (data) => {
+            addMessage(data.text, true);
+        });
+
+        socket.on('assistant_response', (data) => {
+            statusCircle.classList.remove('listening');
+            statusCircle.classList.add('speaking');
+            status.textContent = 'Speaking...';
+            addMessage(data.response);
+        });
+
+        socket.on('assistant_done_speaking', () => {
+            statusCircle.classList.remove('speaking');
+            statusCircle.classList.add('listening');
+            status.textContent = 'Listening...';
+        });
+
+        socket.on('error', (data) => {
+            addMessage(`Error: ${data.error}`);
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            statusCircle.classList.remove('listening', 'speaking');
+            status.textContent = 'Click Start to begin';
+        });
+    </script>
+</body>
+</html>

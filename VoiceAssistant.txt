@@ -1,0 +1,11 @@
+VoiceAssistant/
+├── app.py                   # Main application entry point
+├── templates/
+│   └── index.html           # Web interface template
+├── static/
+│   ├── css/                 # (Optional) CSS files if separated for
+│   ├── js/                  # (Optional) JavaScript files if separated
+├── sound/                   # Directory for generated audio files (e.g., responses)
+├── reminders.json           # JSON file for storing persistent reminders
+├── requirements.txt         # List of dependencies
+└── README.md                # Project documentation
